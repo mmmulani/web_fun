@@ -6,8 +6,8 @@ var Y_MIN = -1;
 var Y_MAX = 1;
 
 function init() {
-  var width = 400;
-  var height = 200;
+  var width = 700;
+  var height = 500;
   var points = calcPoints(width, height);
   drawPoints(points, width, height);
 }
@@ -26,6 +26,8 @@ function calcPoints(width, height) {
       var x_0 = coord[0];
       var y_0 = coord[1];
 
+      var coords = [coord];
+
       for (var k = 0; k < MAX_ITERS; k++) {
         var x = coord[0];
         var y = coord[1];
@@ -33,13 +35,23 @@ function calcPoints(width, height) {
         var new_y = 2 * x * y + y_0;
 
         coord = [new_x, new_y];
+        coords.push(coord);
         if (new_x * new_x + new_y * new_y > 4) {
-          deletePixel(orig_px, points, width, height);
+          incCoords(coords, points, width, height);
           break;
         }
       }
     }
   }
+
+  console.log('max:');
+  var max = 0;
+  for (var i = 0; i < points.length; i++) {
+    if (points[i] > max) {
+      max = points[i];
+    }
+  }
+  console.log(max);
 
   return points;
 }
@@ -62,6 +74,14 @@ function coordToPixel(x, y, width, height) {
   return [x, y];
 }
 
+function incCoords(coords, points, width, height) {
+  for (var i = 0; i < coords.length; i++) {
+    var coord = coords[i];
+    var pixel = coordToPixel(coord[0], coord[1], width, height);
+    incrementPixel(pixel, points, width, height);
+  }
+}
+
 function incrementPixel(pixel, points, width, height) {
   var pos = (pixel[1] * width) + pixel[0];
   points[pos]++;
@@ -82,10 +102,11 @@ function drawPoints(points, width, height) {
     for (var y = 0; y < height; y++) {
       var val = points[(y * width) + x];
       var fill_style = '';
-      if (val == -1) {
-        fill_style = 'rgb(255,255,255)';
+      if (val == 0) {
+        fill_style = 'rgb(0,0,0)';
       } else {
-        fill_style = 'rgb(255,0,0)';
+        val = Math.floor((val / 36) * 255);
+        fill_style = 'rgb(' + [val, val, val].join(',') + ')';
       }
 
       context.fillStyle = fill_style;
