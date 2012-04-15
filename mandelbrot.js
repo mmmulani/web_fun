@@ -1,4 +1,4 @@
-var MAX_ITERS = 10000;
+var MAX_ITERS = 4000;
 
 var X_MIN = -2;
 var X_MAX = 1;
@@ -10,6 +10,10 @@ var Y_DIST = Y_MAX - Y_MIN;
 
 var WIDTH = 700;
 var HEIGHT = 500;
+
+var ZOOM_RATIO = 1;
+var VIEWPORT_X = -2;
+var VIEWPORT_Y = -1;
 
 // WIDTH * HEIGHT array of ints.
 // Each value corresponds to the number of times an escaping sequence passed
@@ -38,19 +42,49 @@ function init() {
 
 function calcPoints() {
   var coords_to_draw = [];
-  for (var i = 0; i < WIDTH; i++) {
-    for (var j = 0; j < WIDTH; j++) {
-      var coord = pixelToCoord(i, j);
-      if (isInMandelbrot(coord))
-        continue;
+  // Determine a first point.
 
+  var coord = null;
+  var last_len = 0;
+  for (var i = 0; i < MAX_ITERS; i++) {
+    var x = X_MIN + X_DIST * Math.random();
+    var y = Y_MIN + Y_DIST * Math.random();
+
+    if (isInMandelbrot([x, y])) {
+      continue;
+    }
+
+    last_len = escapePathLength(x, y);
+    if (last_len > 0) {
+      coord = [x, y];
       coords_to_draw.push(coord);
+      break;
+    }
+  }
+
+  while (coords_to_draw.length < 50000) {
+    var candidate = mutate(coord);
+    if (isInMandelbrot(candidate)) {
+      continue;
+    }
+
+    var len = escapePathLength(candidate[0], candidate[1]);
+
+    if (len == 0) {
+      continue;
+    }
+
+    var prob = len / last_len;
+
+    if (Math.random() < prob) {
+      coords_to_draw.push(candidate);
+      coord = candidate;
+      last_len = len;
     }
   }
 
   for (var i = 0; i < coords_to_draw.length; i++) {
-    var j = Math.floor(Math.random() * coords_to_draw.length);
-    var coord_0 = coords_to_draw[j];
+    var coord_0 = coords_to_draw[i];
     var x_0 = coord_0[0];
     var y_0 = coord_0[1];
 
@@ -70,6 +104,39 @@ function calcPoints() {
   }
 }
 
+function escapePathLength(x, y) {
+  var x_0 = x;
+  var y_0 = y;
+
+  var in_viewport = false;
+
+  var viewport_x_max = VIEWPORT_X + X_DIST / ZOOM_RATIO;
+  var viewport_y_max = VIEWPORT_Y + Y_DIST / ZOOM_RATIO;
+
+  for (var i = 0; i < MAX_ITERS; i++) {
+    var new_x = x * x - y * y + x_0;
+    var new_y = 2 * x * y + y_0;
+
+    x = new_x;
+    y = new_y;
+
+    if (x > VIEWPORT_X && x < viewport_x_max &&
+        y > VIEWPORT_Y && y < viewport_y_max) {
+      in_viewport = true;
+    }
+
+    if (x * x + y * y > 4) {
+      if (in_viewport) {
+        return i + 1;
+      } else {
+        return 0;
+      }
+    }
+  }
+
+  return 0;
+}
+
 function drawCoordsFrom(x, y) {
   var x_0 = x;
   var y_0 = y;
@@ -86,16 +153,26 @@ function drawCoordsFrom(x, y) {
   }
 }
 
+function mutate(coord) {
+  var x = coord[0];
+  var y = coord[1];
+
+  x = X_MIN + X_DIST * Math.random();
+  y = Y_MIN + Y_DIST * Math.random();
+
+  return [x, y];
+}
+
 function pixelToCoord(i, j) {
-  var x = X_MIN + X_DIST * (i / WIDTH);
-  var y = Y_MIN + Y_DIST * (j / HEIGHT);
+  var x = VIEWPORT_X + X_DIST / ZOOM_RATIO * (i / WIDTH);
+  var y = VIEWPORT_Y + Y_DIST / ZOOM_RATIO * (j / HEIGHT);
 
   return [x, y];
 }
 
 function coordToPixel(x, y) {
-  var x = Math.floor((x - X_MIN) / X_DIST * WIDTH);
-  var y = Math.floor((y - Y_MIN) / Y_DIST * HEIGHT);
+  var x = Math.floor((x - VIEWPORT_X) / (X_DIST / ZOOM_RATIO) * WIDTH);
+  var y = Math.floor((y - VIEWPORT_Y) / (Y_DIST / ZOOM_RATIO) * HEIGHT);
 
   return [x, y];
 }
